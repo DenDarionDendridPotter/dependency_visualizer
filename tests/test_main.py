@@ -1,13 +1,23 @@
-"""Тесты запуска программы из командной строки."""
+"""Тесты запуска программы из командной строки без доступа к сети."""
 
 import contextlib
 import io
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from src.main import EXIT_CONFIG_ERROR, EXIT_OK, main
+from src.apk import parse_index
+from src.errors import RepositoryError
+from src.main import (
+    EXIT_CONFIG_ERROR,
+    EXIT_OK,
+    EXIT_REPOSITORY_ERROR,
+    main,
+)
 
 PROJECT = Path(__file__).resolve().parent.parent
+CONFIG = str(PROJECT / "config.xml")
+INDEX = parse_index("P:curl\nV:1\nD:zlib\n\nP:zlib\nV:2\n")
 
 
 def run(argv):
@@ -25,20 +35,28 @@ def run(argv):
 class MainTest(unittest.TestCase):
     """Проверки кода завершения и вывода программы."""
 
-    def test_prints_all_parameters(self):
-        """Корректная конфигурация выводит все параметры."""
-        code, out, _ = run(["--config", str(PROJECT / "config.xml")])
+    def test_prints_direct_dependencies(self):
+        """Выводятся прямые зависимости, параметры больше не печатаются."""
+        with mock.patch("src.main.load_index", return_value=INDEX):
+            code, out, _ = run(["--config", CONFIG])
         self.assertEqual(code, EXIT_OK)
-        for key in ("package", "repository", "test_mode", "ascii_tree",
-                    "max_depth", "filter"):
-            self.assertIn(f"{key} = ", out)
+        self.assertIn("zlib -> zlib", out)
+        self.assertNotIn("max_depth = ", out)
 
-    def test_error_goes_to_stderr(self):
+    def test_repository_error(self):
+        """Ошибка репозитория печатается в stderr с кодом 2."""
+        error = RepositoryError("нет связи")
+        with mock.patch("src.main.load_index", side_effect=error):
+            code, out, err = run(["--config", CONFIG])
+        self.assertEqual(code, EXIT_REPOSITORY_ERROR)
+        self.assertEqual(out, "")
+        self.assertIn("ошибка репозитория: нет связи", err)
+
+    def test_config_error(self):
         """Ошибка конфигурации печатается в stderr с кодом 1."""
         path = PROJECT / "configs" / "errors" / "bad_url.xml"
         code, out, err = run(["--config", str(path)])
         self.assertEqual(code, EXIT_CONFIG_ERROR)
-        self.assertEqual(out, "")
         self.assertIn("ошибка конфигурации", err)
 
 

@@ -3,12 +3,18 @@
 import argparse
 import sys
 
-from src.config import format_config, load_config
-from src.errors import ConfigError
+from src.apk import direct_dependencies, format_dependencies, load_index
+from src.config import load_config
+from src.errors import ConfigError, RepositoryError
 
 DEFAULT_CONFIG = "config.xml"
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
+EXIT_REPOSITORY_ERROR = 2
+TEST_MODE_NOTE = (
+    "режим тестового репозитория будет поддержан на этапе 3, "
+    "сейчас укажите URL реального репозитория"
+)
 
 
 def parse_args(argv=None):
@@ -29,8 +35,21 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def show_direct_dependencies(config):
+    """Скачать индекс репозитория и вывести прямые зависимости пакета.
+
+    :param config: проверенные параметры.
+    :raises RepositoryError: при ошибке загрузки или если пакета нет.
+    """
+    if config.test_mode:
+        raise RepositoryError(TEST_MODE_NOTE)
+    index = load_index(config.repository)
+    dependencies = direct_dependencies(index, config.package)
+    print(format_dependencies(index[config.package], dependencies))
+
+
 def main(argv=None):
-    """Загрузить конфигурацию и вывести все параметры.
+    """Загрузить конфигурацию и вывести прямые зависимости пакета.
 
     :param argv: список аргументов командной строки.
     :returns: код завершения программы.
@@ -41,7 +60,11 @@ def main(argv=None):
     except ConfigError as error:
         print(f"ошибка конфигурации: {error}", file=sys.stderr)
         return EXIT_CONFIG_ERROR
-    print(format_config(config))
+    try:
+        show_direct_dependencies(config)
+    except RepositoryError as error:
+        print(f"ошибка репозитория: {error}", file=sys.stderr)
+        return EXIT_REPOSITORY_ERROR
     return EXIT_OK
 
 

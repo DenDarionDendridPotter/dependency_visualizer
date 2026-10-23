@@ -7,3 +7,7 @@ class VisualizerError(Exception):
 
 class ConfigError(VisualizerError):
     """Ошибка конфигурационного файла или значения параметра."""
+
+
+class RepositoryError(VisualizerError):
+    """Ошибка загрузки или разбора индекса репозитория пакетов."""

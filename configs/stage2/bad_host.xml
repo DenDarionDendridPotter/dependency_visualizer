@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ошибка: сервер не существует. -->
+<config>
+  <package>curl</package>
+  <repository>https://no-such-host.invalid/alpine/main/x86_64</repository>
+</config>
