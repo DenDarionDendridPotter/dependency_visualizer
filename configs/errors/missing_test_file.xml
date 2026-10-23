@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ошибка: файл тестового репозитория не существует. -->
+<config>
+  <package>curl</package>
+  <repository>tests/no_such_repo.txt</repository>
+  <test_mode>true</test_mode>
+</config>

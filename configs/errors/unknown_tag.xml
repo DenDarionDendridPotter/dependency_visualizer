@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ошибка: неизвестный параметр. -->
+<config>
+  <package>curl</package>
+  <repository>https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64</repository>
+  <color>red</color>
+</config>

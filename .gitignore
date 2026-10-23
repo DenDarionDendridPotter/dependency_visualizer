@@ -1,0 +1,17 @@
+# Служебные файлы Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Артефакты сборки и архивы
+build/
+dist/
+*.zip
+*.tar.gz
+
+# Настройки редакторов
+.idea/
+.vscode/
+*.swp
