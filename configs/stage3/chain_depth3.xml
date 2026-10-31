@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Цепочка, глубина 3. -->
+<config>
+  <package>A</package>
+  <repository>repos/chain.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>3</max_depth>
+</config>

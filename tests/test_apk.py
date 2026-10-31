@@ -8,14 +8,13 @@ from pathlib import Path
 
 from src.apk import (
     Dependency,
+    build_providers,
     direct_dependencies,
     download,
     extract_index,
-    format_dependencies,
     index_url,
     parse_index,
     strip_version,
-    unique_packages,
 )
 from src.errors import RepositoryError
 
@@ -124,25 +123,17 @@ class DependencyTest(unittest.TestCase):
         with self.assertRaises(RepositoryError):
             direct_dependencies(INDEX, "nope")
 
-    def test_unique_packages(self):
-        """Повторяющиеся пакеты учитываются один раз."""
-        deps = [Dependency("a", "x"), Dependency("b", "x"),
-                Dependency("c", None), Dependency("d", "y")]
-        self.assertEqual(unique_packages(deps), ["x", "y"])
-
-    def test_format(self):
-        """Вывод содержит каждую зависимость и итог."""
-        text = format_dependencies(
-            INDEX["curl"], direct_dependencies(INDEX, "curl")
+    def test_prebuilt_providers(self):
+        """Готовая таблица виртуальных имён даёт тот же результат."""
+        providers = build_providers(INDEX)
+        self.assertEqual(
+            direct_dependencies(INDEX, "curl", providers),
+            direct_dependencies(INDEX, "curl"),
         )
-        self.assertIn("so:libz.so.1 -> zlib", text)
-        self.assertIn("итого пакетов: 3 (libcurl, musl, zlib)", text)
 
-    def test_format_without_dependencies(self):
-        """Для пакета без зависимостей выводится слово нет."""
-        text = format_dependencies(INDEX["musl"], [])
-        self.assertIn("нет", text)
-        self.assertTrue(text.endswith("итого пакетов: 0"))
+    def test_package_without_dependencies(self):
+        """У пакета без поля D зависимостей нет."""
+        self.assertEqual(direct_dependencies(INDEX, "musl"), [])
 
 
 class ArchiveTest(unittest.TestCase):

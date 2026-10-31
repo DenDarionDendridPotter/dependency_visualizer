@@ -3,18 +3,16 @@
 import argparse
 import sys
 
-from src.apk import direct_dependencies, format_dependencies, load_index
 from src.config import load_config
 from src.errors import ConfigError, RepositoryError
+from src.graph import build_graph, find_cycles
+from src.report import format_graph
+from src.repository import open_repository
 
 DEFAULT_CONFIG = "config.xml"
 EXIT_OK = 0
 EXIT_CONFIG_ERROR = 1
 EXIT_REPOSITORY_ERROR = 2
-TEST_MODE_NOTE = (
-    "режим тестового репозитория будет поддержан на этапе 3, "
-    "сейчас укажите URL реального репозитория"
-)
 
 
 def parse_args(argv=None):
@@ -35,21 +33,21 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def show_direct_dependencies(config):
-    """Скачать индекс репозитория и вывести прямые зависимости пакета.
+def show_graph(config):
+    """Построить граф зависимостей и вывести отчёт о нём.
 
     :param config: проверенные параметры.
-    :raises RepositoryError: при ошибке загрузки или если пакета нет.
+    :raises RepositoryError: при ошибке данных или анализируемого пакета.
     """
-    if config.test_mode:
-        raise RepositoryError(TEST_MODE_NOTE)
-    index = load_index(config.repository)
-    dependencies = direct_dependencies(index, config.package)
-    print(format_dependencies(index[config.package], dependencies))
+    repository = open_repository(config)
+    graph = build_graph(
+        repository, config.package, config.max_depth, config.filter_substring
+    )
+    print(format_graph(graph, find_cycles(graph)))
 
 
 def main(argv=None):
-    """Загрузить конфигурацию и вывести прямые зависимости пакета.
+    """Загрузить конфигурацию, построить граф и вывести его.
 
     :param argv: список аргументов командной строки.
     :returns: код завершения программы.
@@ -61,7 +59,7 @@ def main(argv=None):
         print(f"ошибка конфигурации: {error}", file=sys.stderr)
         return EXIT_CONFIG_ERROR
     try:
-        show_direct_dependencies(config)
+        show_graph(config)
     except RepositoryError as error:
         print(f"ошибка репозитория: {error}", file=sys.stderr)
         return EXIT_REPOSITORY_ERROR

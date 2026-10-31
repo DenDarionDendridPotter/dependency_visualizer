@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Глубина 1: видны только прямые зависимости. -->
+<config>
+  <package>A</package>
+  <repository>repos/tree.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>1</max_depth>
+</config>

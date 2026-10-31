@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Пакет E встречается на разных глубинах и берётся с наименьшей. -->
+<config>
+  <package>A</package>
+  <repository>repos/wide.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>10</max_depth>
+</config>

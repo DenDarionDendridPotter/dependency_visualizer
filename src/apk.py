@@ -182,7 +182,7 @@ def build_providers(index):
     return providers
 
 
-def direct_dependencies(index, package):
+def direct_dependencies(index, package, providers=None):
     """Найти прямые зависимости пакета.
 
     Конфликты (зависимости с !) пропускаются, виртуальные имена
@@ -190,13 +190,16 @@ def direct_dependencies(index, package):
 
     :param index: разобранный индекс репозитория.
     :param package: имя пакета.
+    :param providers: таблица виртуальных имён; если не задана, строится
+        заново, а при многих вызовах её лучше построить один раз.
     :returns: список прямых зависимостей.
     :raises RepositoryError: если пакета нет в репозитории.
     """
     record = index.get(package)
     if record is None:
         raise RepositoryError(f"пакет {package} не найден в репозитории")
-    providers = build_providers(index)
+    if providers is None:
+        providers = build_providers(index)
     result = []
     for token in record.depends:
         if token.startswith(CONFLICT_PREFIX):
@@ -215,40 +218,3 @@ def load_index(repository):
     :raises RepositoryError: при ошибке загрузки или разбора.
     """
     return parse_index(extract_index(download(index_url(repository))))
-
-
-def unique_packages(dependencies):
-    """Получить список различных пакетов из зависимостей.
-
-    :param dependencies: прямые зависимости.
-    :returns: имена пакетов без повторов, в порядке появления.
-    """
-    names = []
-    for dependency in dependencies:
-        if dependency.package and dependency.package not in names:
-            names.append(dependency.package)
-    return names
-
-
-def format_dependencies(record, dependencies):
-    """Собрать текст с прямыми зависимостями для вывода на экран.
-
-    :param record: описание анализируемого пакета.
-    :param dependencies: его прямые зависимости.
-    :returns: многострочный текст.
-    """
-    lines = [f"прямые зависимости пакета {record.name} {record.version}:"]
-    for dependency in dependencies:
-        if dependency.package is None:
-            target = "пакет не найден в репозитории"
-        else:
-            target = dependency.package
-        lines.append(f"  {dependency.raw} -> {target}")
-    if not dependencies:
-        lines.append("  нет")
-    packages = unique_packages(dependencies)
-    total = f"итого пакетов: {len(packages)}"
-    if packages:
-        total += f" ({', '.join(packages)})"
-    lines.append(total)
-    return "\n".join(lines)

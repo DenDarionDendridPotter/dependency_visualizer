@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Глубина 2 на широком графе. -->
+<config>
+  <package>A</package>
+  <repository>repos/wide.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>2</max_depth>
+</config>

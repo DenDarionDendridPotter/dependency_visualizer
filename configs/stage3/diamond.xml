@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ромб: общий пакет D показан один раз. -->
+<config>
+  <package>A</package>
+  <repository>repos/diamond.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>10</max_depth>
+</config>
