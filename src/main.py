@@ -6,8 +6,9 @@ import sys
 from src.config import load_config
 from src.errors import ConfigError, RepositoryError
 from src.graph import build_graph, find_cycles
-from src.report import format_graph
+from src.mermaid import to_mermaid
 from src.repository import open_repository
+from src.tree import format_tree
 
 DEFAULT_CONFIG = "config.xml"
 EXIT_OK = 0
@@ -34,7 +35,10 @@ def parse_args(argv=None):
 
 
 def show_graph(config):
-    """Построить граф зависимостей и вывести отчёт о нём.
+    """Построить граф и вывести его описание на языке Mermaid.
+
+    Если в конфигурации включён параметр ascii_tree, после диаграммы
+    выводится ещё и ASCII-дерево.
 
     :param config: проверенные параметры.
     :raises RepositoryError: при ошибке данных или анализируемого пакета.
@@ -47,7 +51,10 @@ def show_graph(config):
         config.filter_substring,
         config.reverse,
     )
-    print(format_graph(graph, find_cycles(graph)))
+    print(to_mermaid(graph, find_cycles(graph)))
+    if config.ascii_tree:
+        print()
+        print(format_tree(graph))
 
 
 def main(argv=None):

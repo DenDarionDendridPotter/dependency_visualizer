@@ -18,6 +18,7 @@ from .errors import RepositoryError
 
 ACTIVE = "active"
 DONE = "done"
+NO_FILTER_TEXT = "нет"
 
 
 @dataclass
@@ -59,6 +60,18 @@ class Graph:
         if self.reverse:
             return [(target, source) for source, target in pairs]
         return pairs
+
+    def title(self):
+        """Описать граф одной строкой для подписи к выводу.
+
+        :returns: строка с видом графа, пакетом, глубиной и фильтром.
+        """
+        kind = "обратные зависимости" if self.reverse else "зависимости"
+        substring = self.filter_substring or NO_FILTER_TEXT
+        return (
+            f"{kind} пакета {self.root} "
+            f"(глубина анализа: {self.max_depth}, фильтр: {substring})"
+        )
 
 
 def is_excluded(name, substring):

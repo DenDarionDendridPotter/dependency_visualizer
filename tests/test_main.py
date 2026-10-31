@@ -18,11 +18,12 @@ from src.main import (
 
 PROJECT = Path(__file__).resolve().parent.parent
 CONFIG = str(PROJECT / "config.xml")
-DEMO_DIR = PROJECT / "configs" / "stage3"
-REVERSE_DIR = PROJECT / "configs" / "stage4"
+CONFIGS = PROJECT / "configs"
+DEMO_DIRS = (CONFIGS / "stage3", CONFIGS / "stage4", CONFIGS / "stage5")
 REAL_PREFIX = "real_"
 ERROR_PREFIX = "error_"
 INDEX = parse_index("P:curl\nV:1\nD:zlib\n\nP:zlib\nV:2\n")
+TREE_HEADING = "ASCII-дерево"
 
 
 def run(argv):
@@ -37,16 +38,43 @@ def run(argv):
     return code, out.getvalue(), err.getvalue()
 
 
+def run_with_package(config_path, old, new, index):
+    """Запустить конфигурацию, подменив имя пакета и индекс Alpine.
+
+    :param config_path: путь к конфигурации с настоящим репозиторием.
+    :param old: подстрока, которую нужно заменить в конфигурации.
+    :param new: подстрока-замена.
+    :param index: индекс, который вернёт "скачивание".
+    :returns: кортеж (код завершения, stdout, stderr).
+    """
+    text = config_path.read_text(encoding="utf-8").replace(old, new)
+    with tempfile.TemporaryDirectory() as directory:
+        copy = Path(directory) / "config.xml"
+        copy.write_text(text, encoding="utf-8")
+        with mock.patch("src.repository.load_index", return_value=index):
+            return run(["--config", str(copy)])
+
+
 class MainTest(unittest.TestCase):
     """Проверки кода завершения и вывода программы."""
 
-    def test_prints_graph_for_alpine(self):
-        """Граф пакета Alpine строится по скачанному индексу."""
+    def test_mermaid_for_alpine(self):
+        """По скачанному индексу печатается диаграмма Mermaid."""
         with mock.patch("src.repository.load_index", return_value=INDEX):
             code, out, _ = run(["--config", CONFIG])
         self.assertEqual(code, EXIT_OK)
-        self.assertIn("граф зависимостей пакета curl", out)
-        self.assertIn("  curl -> zlib", out)
+        self.assertTrue(out.startswith("graph TD\n"))
+        self.assertIn('n0["curl"]', out)
+        self.assertIn("n0 --> n1", out)
+
+    def test_ascii_tree_follows_config(self):
+        """Дерево печатается, только если включён параметр ascii_tree."""
+        with mock.patch("src.repository.load_index", return_value=INDEX):
+            _, with_tree, _ = run(["--config", CONFIG])
+        self.assertIn(TREE_HEADING, with_tree)
+        self.assertIn("`-- zlib", with_tree)
+        plain = CONFIGS / "stage3" / "tree_full.xml"
+        self.assertNotIn(TREE_HEADING, run(["--config", str(plain)])[1])
 
     def test_filter_from_config_is_applied(self):
         """Фильтр из config.xml исключает пакеты с подстрокой."""
@@ -54,16 +82,32 @@ class MainTest(unittest.TestCase):
                             "P:dev-tools\n")
         with mock.patch("src.repository.load_index", return_value=index):
             _, out, _ = run(["--config", CONFIG])
-        self.assertIn("curl -> zlib", out)
-        self.assertNotIn("dev-tools", out.split("фильтр: dev)")[1])
+        self.assertIn('"zlib"', out)
+        self.assertNotIn('"dev-tools"', out)
 
     def test_test_mode(self):
         """Тестовый режим работает без сети."""
-        path = DEMO_DIR / "tree_full.xml"
+        path = CONFIGS / "stage3" / "tree_full.xml"
         code, out, _ = run(["--config", str(path)])
         self.assertEqual(code, EXIT_OK)
-        self.assertIn("  B -> D", out)
-        self.assertIn("пакетов: 6, зависимостей: 5", out)
+        self.assertIn("    n1 --> n3", out)
+
+    def test_reverse_mode(self):
+        """Режим обратных зависимостей включается параметром reverse."""
+        path = CONFIGS / "stage4" / "reverse_tree.xml"
+        code, out, _ = run(["--config", str(path)])
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("обратные зависимости пакета D", out)
+        self.assertIn("    n2 --> n1", out)
+
+    def test_reverse_mode_for_alpine(self):
+        """Обратные зависимости пакета Alpine берутся из индекса."""
+        index = parse_index("P:a\nD:b\n\nP:b\n")
+        path = CONFIGS / "stage4" / "real_reverse_curl.xml"
+        code, out, _ = run_with_package(path, ">curl<", ">b<", index)
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn('n1["a"]', out)
+        self.assertIn("    n1 --> n0", out)
 
     def test_repository_error(self):
         """Ошибка репозитория печатается в stderr с кодом 2."""
@@ -76,35 +120,14 @@ class MainTest(unittest.TestCase):
 
     def test_config_error(self):
         """Ошибка конфигурации печатается в stderr с кодом 1."""
-        path = PROJECT / "configs" / "errors" / "bad_url.xml"
+        path = CONFIGS / "errors" / "bad_url.xml"
         code, _, err = run(["--config", str(path)])
         self.assertEqual(code, EXIT_CONFIG_ERROR)
         self.assertIn("ошибка конфигурации", err)
 
-    def test_reverse_mode(self):
-        """Режим обратных зависимостей включается параметром reverse."""
-        path = REVERSE_DIR / "reverse_tree.xml"
-        code, out, _ = run(["--config", str(path)])
-        self.assertEqual(code, EXIT_OK)
-        self.assertIn("обратные зависимости пакета D", out)
-        self.assertIn("  A -> B", out)
-
-    def test_reverse_mode_for_alpine(self):
-        """Обратные зависимости пакета Alpine берутся из индекса."""
-        index = parse_index("P:a\nD:b\n\nP:b\n")
-        path = REVERSE_DIR / "real_reverse_curl.xml"
-        config = path.read_text(encoding="utf-8").replace(">curl<", ">b<")
-        with tempfile.TemporaryDirectory() as directory:
-            copy = Path(directory) / "config.xml"
-            copy.write_text(config, encoding="utf-8")
-            with mock.patch("src.repository.load_index", return_value=index):
-                code, out, _ = run(["--config", str(copy)])
-        self.assertEqual(code, EXIT_OK)
-        self.assertIn("  a -> b", out)
-
     def test_demo_configs_of_test_mode(self):
         """Все демонстрационные конфигурации тестового режима работают."""
-        for directory in (DEMO_DIR, REVERSE_DIR):
+        for directory in DEMO_DIRS:
             for path in sorted(directory.glob("*.xml")):
                 if path.name.startswith(REAL_PREFIX):
                     continue

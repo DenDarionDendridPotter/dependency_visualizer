@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ограничение глубины: пунктирная рамка у пакетов с нераскрытыми зависимостями. -->
+<config>
+  <package>A</package>
+  <repository>repos/tree.txt</repository>
+  <test_mode>true</test_mode>
+  <ascii_tree>true</ascii_tree>
+  <max_depth>1</max_depth>
+</config>
