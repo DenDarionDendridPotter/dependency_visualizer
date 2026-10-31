@@ -1,7 +1,9 @@
 """Граф зависимостей: обход в ширину без рекурсии и поиск циклов.
 
 Обход начинается с анализируемого пакета (глубина 0). Его зависимости
-получают глубину 1, их зависимости глубину 2 и так далее. Пакет
+получают глубину 1, их зависимости глубину 2 и так далее. Для
+обратных зависимостей (кто зависит от пакета) обход тот же, но
+"соседями" пакета считаются пакеты, которые зависят от него. Пакет
 попадает в граф один раз, на самой маленькой глубине, на которой он
 встретился. Это же гарантирует конец обхода при циклических
 зависимостях: уже встреченный пакет повторно в очередь не ставится.
@@ -27,8 +29,10 @@ class Graph:
     :param filter_substring: подстрока, исключающая пакеты из анализа.
     :param levels: пакет -> глубина, в порядке обхода.
     :param links: раскрытый пакет -> список его зависимостей.
-    :param truncated: пакеты, у которых зависимости не раскрыты из-за
+    :param truncated: пакеты, у которых связи не раскрыты из-за
         ограничения глубины.
+    :param reverse: True для обратных зависимостей: тогда связи
+        пакета это пакеты, которые зависят от него.
     """
 
     root: str
@@ -37,17 +41,24 @@ class Graph:
     levels: dict = field(default_factory=dict)
     links: dict = field(default_factory=dict)
     truncated: set = field(default_factory=set)
+    reverse: bool = False
 
     def edges(self):
         """Перечислить все зависимости графа.
 
-        :returns: список пар (пакет, пакет, от которого он зависит).
+        Каждая зависимость это пара (пакет, пакет, от которого он
+        зависит), независимо от направления обхода.
+
+        :returns: список пар.
         """
-        return [
+        pairs = [
             (source, target)
             for source, targets in self.links.items()
             for target in targets
         ]
+        if self.reverse:
+            return [(target, source) for source, target in pairs]
+        return pairs
 
 
 def is_excluded(name, substring):
@@ -77,25 +88,33 @@ def check_root(repository, root, substring):
         )
 
 
-def build_graph(repository, root, max_depth, filter_substring=""):
+def build_graph(
+    repository, root, max_depth, filter_substring="", reverse=False
+):
     """Построить граф зависимостей обходом в ширину без рекурсии.
+
+    Один и тот же обход строит и прямые зависимости (от чего зависит
+    пакет), и обратные (кто зависит от пакета): меняется только
+    способ получить соседей пакета.
 
     :param repository: репозиторий пакетов.
     :param root: имя анализируемого пакета.
     :param max_depth: максимальная глубина анализа.
     :param filter_substring: пакеты с этой подстрокой не учитываются.
+    :param reverse: True для обратных зависимостей.
     :returns: построенный граф.
     :raises RepositoryError: если пакета нет или он исключён фильтром.
     """
     check_root(repository, root, filter_substring)
-    graph = Graph(root, max_depth, filter_substring)
+    graph = Graph(root, max_depth, filter_substring, reverse=reverse)
+    lookup = repository.dependents if reverse else repository.dependencies
     graph.levels[root] = 0
     queue = deque([root])
     while queue:
         node = queue.popleft()
         neighbors = [
             name
-            for name in repository.dependencies(node)
+            for name in lookup(node)
             if not is_excluded(name, filter_substring)
         ]
         if graph.levels[node] >= max_depth:
@@ -119,7 +138,8 @@ def find_cycles(graph):
 
     :param graph: построенный граф.
     :returns: список циклов, каждый цикл это список имён, в котором
-        первый и последний пакет совпадают.
+        первый и последний пакет совпадают, а каждый следующий пакет
+        это зависимость предыдущего.
     """
     cycles = []
     state = {graph.root: ACTIVE}
@@ -135,5 +155,6 @@ def find_cycles(graph):
             path.append(child)
             stack.append(iter(graph.links.get(child, ())))
         elif state[child] == ACTIVE:
-            cycles.append(path[path.index(child):] + [child])
+            cycle = path[path.index(child):] + [child]
+            cycles.append(cycle[::-1] if graph.reverse else cycle)
     return cycles

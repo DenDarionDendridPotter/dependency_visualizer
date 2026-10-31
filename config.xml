@@ -7,4 +7,5 @@
   <ascii_tree>true</ascii_tree>
   <max_depth>3</max_depth>
   <filter>dev</filter>
+  <reverse>false</reverse>
 </config>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Кто зависит от curl (глубина 1). -->
+<config>
+  <package>curl</package>
+  <repository>https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64</repository>
+  <test_mode>false</test_mode>
+  <max_depth>1</max_depth>
+  <reverse>true</reverse>
+</config>

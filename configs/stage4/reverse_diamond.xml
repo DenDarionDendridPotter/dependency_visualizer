@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ромб: от E зависит D, от D зависят B и C, от них A. -->
+<config>
+  <package>E</package>
+  <repository>repos/diamond.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>10</max_depth>
+  <reverse>true</reverse>
+</config>

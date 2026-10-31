@@ -25,6 +25,7 @@ EXPECTED_ERRORS = {
     "wrong_root.xml": "корневым тегом",
     "broken.xml": "неверный формат XML",
     "duplicate_tag.xml": "задан дважды",
+    "bad_reverse.xml": "<reverse>",
 }
 
 
@@ -67,7 +68,9 @@ class ValidConfigTest(ConfigTestCase):
     def test_project_config(self):
         """Пример config.xml из проекта загружается со всеми параметрами."""
         config = load_config(PROJECT / "config.xml")
-        self.assertEqual(config, Config("curl", URL, False, True, 3, "dev"))
+        self.assertEqual(
+            config, Config("curl", URL, False, True, 3, "dev", False)
+        )
 
     def test_defaults(self):
         """Необязательные параметры получают значения по умолчанию."""
@@ -76,8 +79,17 @@ class ValidConfigTest(ConfigTestCase):
         ))
         self.assertFalse(config.test_mode)
         self.assertFalse(config.ascii_tree)
+        self.assertFalse(config.reverse)
         self.assertEqual(config.max_depth, 10)
         self.assertEqual(config.filter_substring, "")
+
+    def test_reverse_true(self):
+        """Значение true включает обратные зависимости."""
+        path = self.write(
+            f"<package>a</package><repository>{URL}</repository>"
+            "<reverse>true</reverse>"
+        )
+        self.assertTrue(load_config(path).reverse)
 
     def test_test_mode_with_existing_file(self):
         """В тестовом режиме репозиторий это путь к существующему файлу."""
@@ -93,7 +105,8 @@ class ValidConfigTest(ConfigTestCase):
         """Все параметры выводятся строками ключ = значение."""
         text = format_config(load_config(PROJECT / "config.xml"))
         lines = text.splitlines()
-        self.assertEqual(len(lines), 6)
+        self.assertEqual(len(lines), 7)
+        self.assertIn("reverse = false", lines)
         self.assertIn("package = curl", lines)
         self.assertIn("ascii_tree = true", lines)
         self.assertIn("max_depth = 3", lines)

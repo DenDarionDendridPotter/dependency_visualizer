@@ -41,7 +41,11 @@ def show_graph(config):
     """
     repository = open_repository(config)
     graph = build_graph(
-        repository, config.package, config.max_depth, config.filter_substring
+        repository,
+        config.package,
+        config.max_depth,
+        config.filter_substring,
+        config.reverse,
     )
     print(format_graph(graph, find_cycles(graph)))
 

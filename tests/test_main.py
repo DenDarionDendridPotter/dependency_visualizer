@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -18,6 +19,7 @@ from src.main import (
 PROJECT = Path(__file__).resolve().parent.parent
 CONFIG = str(PROJECT / "config.xml")
 DEMO_DIR = PROJECT / "configs" / "stage3"
+REVERSE_DIR = PROJECT / "configs" / "stage4"
 REAL_PREFIX = "real_"
 ERROR_PREFIX = "error_"
 INDEX = parse_index("P:curl\nV:1\nD:zlib\n\nP:zlib\nV:2\n")
@@ -79,15 +81,39 @@ class MainTest(unittest.TestCase):
         self.assertEqual(code, EXIT_CONFIG_ERROR)
         self.assertIn("ошибка конфигурации", err)
 
+    def test_reverse_mode(self):
+        """Режим обратных зависимостей включается параметром reverse."""
+        path = REVERSE_DIR / "reverse_tree.xml"
+        code, out, _ = run(["--config", str(path)])
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("обратные зависимости пакета D", out)
+        self.assertIn("  A -> B", out)
+
+    def test_reverse_mode_for_alpine(self):
+        """Обратные зависимости пакета Alpine берутся из индекса."""
+        index = parse_index("P:a\nD:b\n\nP:b\n")
+        path = REVERSE_DIR / "real_reverse_curl.xml"
+        config = path.read_text(encoding="utf-8").replace(">curl<", ">b<")
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory) / "config.xml"
+            copy.write_text(config, encoding="utf-8")
+            with mock.patch("src.repository.load_index", return_value=index):
+                code, out, _ = run(["--config", str(copy)])
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("  a -> b", out)
+
     def test_demo_configs_of_test_mode(self):
         """Все демонстрационные конфигурации тестового режима работают."""
-        for path in sorted(DEMO_DIR.glob("*.xml")):
-            if path.name.startswith(REAL_PREFIX):
-                continue
-            expected = (EXIT_REPOSITORY_ERROR
-                        if path.name.startswith(ERROR_PREFIX) else EXIT_OK)
-            with self.subTest(config=path.name):
-                self.assertEqual(run(["--config", str(path)])[0], expected)
+        for directory in (DEMO_DIR, REVERSE_DIR):
+            for path in sorted(directory.glob("*.xml")):
+                if path.name.startswith(REAL_PREFIX):
+                    continue
+                expected = (EXIT_REPOSITORY_ERROR
+                            if path.name.startswith(ERROR_PREFIX)
+                            else EXIT_OK)
+                with self.subTest(config=path.name):
+                    code = run(["--config", str(path)])[0]
+                    self.assertEqual(code, expected)
 
 
 if __name__ == "__main__":

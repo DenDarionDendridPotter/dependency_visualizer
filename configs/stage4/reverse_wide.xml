@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Пакет E нужен на разных глубинах. -->
+<config>
+  <package>E</package>
+  <repository>repos/wide.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>10</max_depth>
+  <reverse>true</reverse>
+</config>

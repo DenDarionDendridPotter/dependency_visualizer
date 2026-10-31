@@ -9,6 +9,7 @@
       <ascii_tree>true</ascii_tree>
       <max_depth>3</max_depth>
       <filter>dev</filter>
+      <reverse>false</reverse>
     </config>
 """
 
@@ -26,6 +27,7 @@ TEST_MODE_TAG = "test_mode"
 ASCII_TREE_TAG = "ascii_tree"
 MAX_DEPTH_TAG = "max_depth"
 FILTER_TAG = "filter"
+REVERSE_TAG = "reverse"
 KNOWN_TAGS = (
     PACKAGE_TAG,
     REPOSITORY_TAG,
@@ -33,6 +35,7 @@ KNOWN_TAGS = (
     ASCII_TREE_TAG,
     MAX_DEPTH_TAG,
     FILTER_TAG,
+    REVERSE_TAG,
 )
 REQUIRED_TAGS = (PACKAGE_TAG, REPOSITORY_TAG)
 TRUE_TEXT = "true"
@@ -53,6 +56,8 @@ class Config:
     :param ascii_tree: True, если зависимости выводятся ASCII-деревом.
     :param max_depth: максимальная глубина анализа зависимостей.
     :param filter_substring: пакеты с этой подстрокой не учитываются.
+    :param reverse: True, если нужны обратные зависимости, то есть
+        пакеты, которые зависят от анализируемого.
     """
 
     package: str
@@ -61,6 +66,7 @@ class Config:
     ascii_tree: bool = False
     max_depth: int = DEFAULT_MAX_DEPTH
     filter_substring: str = ""
+    reverse: bool = False
 
     def items(self):
         """Вернуть параметры в виде пар (ключ, значение).
@@ -74,6 +80,7 @@ class Config:
             (ASCII_TREE_TAG, _bool_text(self.ascii_tree)),
             (MAX_DEPTH_TAG, str(self.max_depth)),
             (FILTER_TAG, self.filter_substring),
+            (REVERSE_TAG, _bool_text(self.reverse)),
         ]
 
 
@@ -226,6 +233,7 @@ def load_config(path):
         ascii_tree=_parse_bool(ASCII_TREE_TAG, values.get(ASCII_TREE_TAG, "")),
         max_depth=_parse_depth(values.get(MAX_DEPTH_TAG, "")),
         filter_substring=values.get(FILTER_TAG, ""),
+        reverse=_parse_bool(REVERSE_TAG, values.get(REVERSE_TAG, "")),
     )
     _check_package(config.package)
     _check_repository(config.repository, config.test_mode)

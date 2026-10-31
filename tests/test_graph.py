@@ -176,5 +176,71 @@ class CycleTest(unittest.TestCase):
         self.assertEqual(find_cycles(graph), [["B", "C", "B"]])
 
 
+class ReverseTest(unittest.TestCase):
+    """Проверки обратных зависимостей: кто зависит от пакета."""
+
+    def test_reverse_levels(self):
+        """От D зависит B, от B зависит A."""
+        graph = build_graph(repo(TREE), "D", 10, reverse=True)
+        self.assertEqual(list(graph.levels), ["D", "B", "A"])
+
+    def test_reverse_edges_point_from_dependent(self):
+        """Рёбра по-прежнему идут от зависящего к зависимости."""
+        graph = build_graph(repo(TREE), "D", 10, reverse=True)
+        self.assertEqual(graph.edges(), [("B", "D"), ("A", "B")])
+
+    def test_reverse_same_edges_as_forward_subgraph(self):
+        """Каждое ребро обратного графа есть и в прямом графе."""
+        forward = set(build_graph(repo(DIAMOND), "A", 10).edges())
+        backward = build_graph(repo(DIAMOND), "E", 10, reverse=True).edges()
+        self.assertTrue(set(backward) <= forward)
+
+    def test_reverse_diamond(self):
+        """В ромбе от E зависят D, затем B и C, затем A."""
+        graph = build_graph(repo(DIAMOND), "E", 10, reverse=True)
+        self.assertEqual(list(graph.levels), ["E", "D", "B", "C", "A"])
+        self.assertEqual(graph.levels["A"], 3)
+
+    def test_reverse_depth_limit(self):
+        """Глубина ограничивает и обратный обход."""
+        graph = build_graph(repo(TREE), "D", 1, reverse=True)
+        self.assertEqual(list(graph.levels), ["D", "B"])
+        self.assertEqual(graph.truncated, {"B"})
+
+    def test_reverse_filter(self):
+        """Фильтр исключает пакеты и из обратного обхода."""
+        graph = build_graph(repo(DIAMOND), "E", 10, "B", reverse=True)
+        self.assertEqual(list(graph.levels), ["E", "D", "C", "A"])
+
+    def test_reverse_of_top_package(self):
+        """От корня дерева никто не зависит."""
+        graph = build_graph(repo(TREE), "A", 10, reverse=True)
+        self.assertEqual(list(graph.levels), ["A"])
+        self.assertEqual(graph.edges(), [])
+
+    def test_reverse_cycle_is_written_by_dependency(self):
+        """Цикл записан по направлению зависимостей, как в прямом обходе."""
+        graph = build_graph(repo(CYCLE), "A", 10, reverse=True)
+        self.assertEqual(find_cycles(graph), [["A", "B", "C", "A"]])
+
+    def test_reverse_self_loop(self):
+        """Пакет, зависящий от себя, даёт цикл и в обратном обходе."""
+        graph = build_graph(repo("A: A B\nB:\n"), "A", 10, reverse=True)
+        self.assertEqual(find_cycles(graph), [["A", "A"]])
+
+    def test_reverse_missing_root(self):
+        """Отсутствующий пакет вызывает ошибку и в обратном режиме."""
+        with self.assertRaises(RepositoryError):
+            build_graph(repo(TREE), "Z", 10, reverse=True)
+
+    def test_reverse_long_chain_without_recursion(self):
+        """Длинная цепочка обходится в обратную сторону без рекурсии."""
+        size = LONG_CHAIN_SIZE
+        graph = build_graph(
+            chain_repository(size), f"P{size - 1}", size, reverse=True
+        )
+        self.assertEqual(len(graph.levels), size)
+
+
 if __name__ == "__main__":
     unittest.main()

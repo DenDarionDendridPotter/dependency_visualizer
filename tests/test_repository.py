@@ -6,15 +6,50 @@ from unittest import mock
 
 from src.apk import parse_index
 from src.config import Config
-from src.repository import AlpineRepository, FileRepository, open_repository
+from src.repository import (
+    AlpineRepository,
+    FileRepository,
+    invert,
+    open_repository,
+)
 from tests.test_apk import SAMPLE_INDEX
 
 PROJECT = Path(__file__).resolve().parent.parent
 SELF_PROVIDER = "P:a\nD:so:x\np:so:x\n\nP:b\nD:a so:x a\n"
 
 
+class InvertTest(unittest.TestCase):
+    """Проверки обращения связей."""
+
+    def test_invert(self):
+        """Для каждого пакета находятся зависящие от него."""
+        links = {"A": ["B", "C"], "B": ["C"], "C": []}
+        self.assertEqual(invert(links), {"B": ["A"], "C": ["A", "B"]})
+
+    def test_invert_self_loop(self):
+        """Пакет, зависящий от себя, зависит и сам от себя."""
+        self.assertEqual(invert({"A": ["A"]}), {"A": ["A"]})
+
+    def test_invert_empty(self):
+        """У пустого набора связей обратных связей нет."""
+        self.assertEqual(invert({}), {})
+
+
 class FileRepositoryTest(unittest.TestCase):
     """Проверки тестового репозитория."""
+
+    def test_dependents(self):
+        """Обратные зависимости отсортированы по имени."""
+        repository = FileRepository({"A": ["C"], "B": ["C"], "C": []})
+        self.assertEqual(repository.dependents("C"), ["A", "B"])
+        self.assertEqual(repository.dependents("A"), [])
+        self.assertEqual(repository.dependents("Z"), [])
+
+    def test_dependents_are_copied(self):
+        """Изменение результата не портит репозиторий."""
+        repository = FileRepository({"A": ["B"]})
+        repository.dependents("B").append("X")
+        self.assertEqual(repository.dependents("B"), ["A"])
 
     def test_has(self):
         """Описанный пакет найден, неописанный нет."""
@@ -59,6 +94,31 @@ class AlpineRepositoryTest(unittest.TestCase):
         repository = AlpineRepository(parse_index(SELF_PROVIDER))
         self.assertEqual(repository.dependencies("a"), [])
         self.assertEqual(repository.dependencies("b"), ["a"])
+
+
+class AlpineDependentsTest(unittest.TestCase):
+    """Проверки обратных зависимостей в индексе Alpine."""
+
+    def test_dependents_through_virtual_names(self):
+        """От musl зависят пакеты, которые просят его библиотеку."""
+        repository = AlpineRepository(parse_index(SAMPLE_INDEX))
+        self.assertEqual(
+            repository.dependents("musl"), ["curl", "libcurl", "zlib"]
+        )
+
+    def test_dependents_of_leaf_package(self):
+        """От пакета, который никому не нужен, никто не зависит."""
+        repository = AlpineRepository(parse_index(SAMPLE_INDEX))
+        self.assertEqual(repository.dependents("curl"), [])
+
+    def test_table_is_built_once(self):
+        """Таблица обратных зависимостей строится при первом запросе."""
+        repository = AlpineRepository(parse_index(SAMPLE_INDEX))
+        first = repository.dependents("zlib")
+        with mock.patch.object(repository, "dependencies") as spy:
+            second = repository.dependents("zlib")
+        self.assertEqual(first, second)
+        spy.assert_not_called()
 
 
 class OpenRepositoryTest(unittest.TestCase):

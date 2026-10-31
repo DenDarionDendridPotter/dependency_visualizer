@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Два цикла в обратном обходе. -->
+<config>
+  <package>A</package>
+  <repository>repos/two_cycles.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>10</max_depth>
+  <reverse>true</reverse>
+</config>

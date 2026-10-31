@@ -7,16 +7,17 @@ from src.report import format_cycles, format_graph, group_levels
 from tests.test_graph import CYCLE, TREE, repo
 
 
-def report(text, root="A", depth=10, substring=""):
+def report(text, root="A", depth=10, substring="", reverse=False):
     """Построить граф и собрать его отчёт.
 
     :param text: содержимое тестового репозитория.
     :param root: анализируемый пакет.
     :param depth: максимальная глубина.
     :param substring: подстрока фильтра.
+    :param reverse: True для обратных зависимостей.
     :returns: текст отчёта.
     """
-    graph = build_graph(repo(text), root, depth, substring)
+    graph = build_graph(repo(text), root, depth, substring, reverse)
     return format_graph(graph, find_cycles(graph))
 
 
@@ -70,6 +71,43 @@ class ReportTest(unittest.TestCase):
     def test_format_cycles_empty(self):
         """Без циклов выводится одна строка."""
         self.assertEqual(format_cycles([]), ["циклические зависимости: нет"])
+
+
+class ReverseReportTest(unittest.TestCase):
+    """Проверки вывода обратных зависимостей."""
+
+    def test_full_reverse_report(self):
+        """Отчёт обратных зависимостей поясняет направление стрелок."""
+        lines = report("A: B\nB: C\nC:\n", "C", reverse=True).splitlines()
+        self.assertEqual(lines, [
+            "обратные зависимости пакета C: пакеты, которые зависят от "
+            "него (глубина анализа: 10, фильтр: нет)",
+            "уровень 0: C",
+            "уровень 1: B",
+            "уровень 2: A",
+            "зависимости (A -> B означает: A зависит от B):",
+            "  B -> C",
+            "  A -> B",
+            "пакетов: 3, зависимостей: 2",
+            "пакетов, зависящих от C прямо или через другие пакеты: 2",
+            "циклические зависимости: нет",
+        ])
+
+    def test_reverse_truncated_line(self):
+        """Нераскрытые обратные зависимости названы своим именем."""
+        text = report("A: B\nB: C\nC:\n", "C", depth=1, reverse=True)
+        self.assertIn(
+            "обратные зависимости не раскрыты из-за ограничения глубины у: B",
+            text,
+        )
+
+    def test_forward_report_has_no_reverse_lines(self):
+        """В прямом отчёте строк про обратные зависимости нет."""
+        self.assertNotIn("зависящих от", report(TREE))
+
+    def test_reverse_cycle_report(self):
+        """Цикл в обратном отчёте записан по направлению зависимостей."""
+        self.assertIn("  A -> B -> C -> A", report(CYCLE, reverse=True))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Те же зависимости, но только на 1 уровень. -->
+<config>
+  <package>D</package>
+  <repository>repos/tree.txt</repository>
+  <test_mode>true</test_mode>
+  <max_depth>1</max_depth>
+  <reverse>true</reverse>
+</config>
